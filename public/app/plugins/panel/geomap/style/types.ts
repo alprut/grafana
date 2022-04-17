@@ -37,6 +37,14 @@ export interface StyleConfig {
   rotation?: ScalarDimensionConfig;
 }
 
+export interface ArrowStyleConfig {
+  color?: ColorDimensionConfig;
+  opacity?: number; // defaults to 80%
+
+  // For non-points
+  lineWidth?: ScaleDimensionConfig;
+}
+
 export const DEFAULT_SIZE = 5;
 
 export enum TextAlignment {
@@ -77,6 +85,18 @@ export const defaultStyleConfig = Object.freeze({
     min: -360,
     max: 360,
   },
+});
+
+export const defaultArrowStyleConfig = Object.freeze({
+  lineWidth: {
+    fixed: 1,
+    min: 1,
+    max: 15,
+  },
+  color: {
+    fixed: 'dark-green', // picked from theme
+  },
+  opacity: 0.4,
 });
 
 /**
@@ -127,6 +147,31 @@ export interface StyleConfigState {
   fields?: StyleConfigFields;
   dims?: StyleDimensions;
   maker: StyleMaker;
+}
+
+export interface ArrowStyleDimensions {
+  color?: DimensionSupplier<string>;
+  lineWidth?: DimensionSupplier<number>;
+}
+
+// Applying the config to real data gives the values
+export interface ArrowStyleConfigValues {
+  color: string;
+  opacity?: number;
+  lineWidth?: number;
+}
+
+/** When the style depends on a field */
+export interface ArrowStyleConfigFields {
+  color?: string;
+  lineWidth?: string;
+}
+
+export interface ArrowStyleConfigState {
+  config: ArrowStyleConfig;
+  base: ArrowStyleConfigValues;
+  fields?: ArrowStyleConfigFields;
+  dims?: ArrowStyleDimensions;
 }
 
 /**

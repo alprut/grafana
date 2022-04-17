@@ -8,21 +8,31 @@ import {
 } from '@grafana/data';
 import { Style, Stroke } from 'ol/style';
 import Map from 'ol/Map';
-import Feature from 'ol/Feature';
 import LineString from 'ol/geom/LineString';
 import * as source from 'ol/source';
-import { defaultStyleConfig, StyleConfig } from '../../style/types';
+import {
+  defaultArrowStyleConfig,
+  ArrowStyleConfig,
+  ArrowStyleConfigFields,
+  ArrowStyleConfigState,
+  ArrowStyleConfigValues
+} from '../../style/types';
 import VectorLayer from 'ol/layer/Vector';
 import { FieldFinder } from '../../utils/location';
 import { fromLonLat } from 'ol/proj';
+import { ArrowStyleEditor } from './arrowStyleEditor';
+import Feature, { FeatureLike } from 'ol/Feature';
+import { isNumber } from 'lodash';
+import tinycolor from 'tinycolor2';
+import { config } from '@grafana/runtime';
 
 // Configuration options for Circle overlays
 export interface ArrowsConfig {
-  style: StyleConfig;
-}
+  arrowstyle: ArrowStyleConfig;
+};
 
 const defaultOptions: ArrowsConfig = {
-  style: defaultStyleConfig,
+  arrowstyle: defaultArrowStyleConfig,
 };
 
 export const ARROWS_LAYER_ID = 'arrows';
@@ -55,7 +65,6 @@ function matchLowerNames(names: Set<string>): FieldFinder {
 }
 
 function dataFrameToLineString(frame: DataFrame): LineStringInfo {
-    console.log(frame);
     const info: LineStringInfo = {
       lineStrings: [],
     };
@@ -114,6 +123,44 @@ const getArrowFeatures = (frame: DataFrame, info: LineStringInfo): Array<Feature
   return features;
 };
 
+export async function getArrowStyleConfigState(cfg?: ArrowStyleConfig): Promise<ArrowStyleConfigState> {
+  if (!cfg) {
+    cfg = defaultArrowStyleConfig;
+  }
+  const fields: ArrowStyleConfigFields = {};
+  const state: ArrowStyleConfigState = {
+    config: cfg, // raw values
+    fields,
+    base: {
+      color: config.theme2.visualization.getColorByName(cfg.color?.fixed ?? defaultArrowStyleConfig.color.fixed),
+      opacity: cfg.opacity ?? defaultArrowStyleConfig.opacity,
+      lineWidth: cfg.lineWidth?.fixed ?? defaultArrowStyleConfig.lineWidth.fixed,
+    }
+  };
+
+  if (cfg.color?.field?.length) {
+    fields.color = cfg.color.field;
+  }
+  if (cfg.lineWidth?.field?.length) {
+    fields.lineWidth = cfg.lineWidth.field;
+  }
+
+  // Clear the fields if possible
+  if (!Object.keys(fields).length) {
+    state.fields = undefined;
+  }
+  return state;
+}
+
+export const StrokeMarker = (cfg: ArrowStyleConfigValues) => {
+  return new Style({
+    stroke: new Stroke({
+      color: cfg.color,
+      width: cfg.lineWidth,
+    })
+  });
+};
+
 /**
  * Map layer configuration for arrow overlay
  */
@@ -130,26 +177,61 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
    */
   create: async (map: Map, options: MapLayerOptions<ArrowsConfig>, theme: GrafanaTheme2) => {
     // Assert default values
-    /*
     const config = {
       ...defaultOptions,
       ...options?.config,
     };
-    */
 
-    // const style = await getStyleConfigState(config.style);
+    const style = await getArrowStyleConfigState(config.arrowstyle);
 
     // eventually can also use resolution for dynamic style
     const vectorLayer = new VectorLayer();
 
-    const style: Style = new Style({
-      stroke: new Stroke({
-        width: 6, color: [237, 30, 164, 0.8]
-      }),
-    });
+    if(!style.fields) {
+      const color = tinycolor(style.base.color).setAlpha(style.base.opacity ?? defaultArrowStyleConfig.opacity).toRgbString();
 
-    vectorLayer.setStyle(style);
+      // Set a global style
+      const line_style: Style = new Style({
+        stroke: new Stroke({
+          width: style.base.lineWidth,
+          color: color,
+        }),
+      });
+      vectorLayer.setStyle(line_style);
 
+    } else {
+      vectorLayer.setStyle((feature: FeatureLike) => {
+        const idx = feature.get("rowIndex") as number;
+        const dims = style.dims;
+        if(!dims || !(isNumber(idx))) {
+          const line_style: Style = new Style({
+            stroke: new Stroke({
+              width: style.base.lineWidth,
+              color: style.base.color,
+            }),
+          });
+          return line_style;
+        }
+
+        const values = {...style.base};
+
+        if (dims.color) {
+          values.color = dims.color.get(idx);
+        }
+        if (dims.lineWidth) {
+          values.lineWidth = dims.lineWidth.get(idx);
+        }
+        const line_style: Style = new Style({
+          stroke: new Stroke({
+            width: values.lineWidth,
+            color: values.color,
+          }),
+        });
+        return line_style;
+      }
+      );
+    }
+    
     return {
       init: () => vectorLayer,
       update: (data: PanelData) => {
@@ -176,6 +258,16 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
         const vectorSource = new source.Vector({ features });
         vectorLayer.setSource(vectorSource);
       },
+      registerOptionsUI: (builder) => {
+        builder
+          .addCustomEditor({
+            id: 'config.arrowstyle',
+            path: 'config.arrowstyle',
+            name: 'Styles',
+            editor: ArrowStyleEditor,
+            defaultValue: defaultOptions.arrowstyle,
+          });
+        },
     };
   },
 
