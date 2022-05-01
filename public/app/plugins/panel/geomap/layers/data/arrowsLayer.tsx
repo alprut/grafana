@@ -6,9 +6,10 @@ import {
   FrameGeometrySourceMode,
   DataFrame,
 } from '@grafana/data';
-import { Style, Stroke } from 'ol/style';
+import { Icon, Style, Stroke } from 'ol/style';
 import Map from 'ol/Map';
 import LineString from 'ol/geom/LineString';
+import Point from 'ol/geom/Point';
 import * as source from 'ol/source';
 import {
   getScaledDimension,
@@ -157,14 +158,33 @@ export async function getArrowStyleConfigState(cfg?: ArrowStyleConfig): Promise<
   return state;
 }
 
-const strokeMaker = (cfg: ArrowStyleConfigValues) => {
+const strokeMaker = (cfg: ArrowStyleConfigValues, coords: number[][]) => {
   const color = tinycolor(cfg.color).setAlpha(cfg.opacity ?? defaultArrowStyleConfig.opacity).toRgbString();
-  return new Style({
-    stroke: new Stroke({
-      width: cfg.lineWidth,
-      color: color,
+  const start = coords[0];
+  const end = coords[1];
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const rotation = Math.atan2(dx, dy);
+
+  return [
+    new Style({
+      stroke: new Stroke({
+        width: cfg.lineWidth,
+        color: color,
+      })
+    }),
+    new Style({
+      geometry: new Point(end),
+      image: new Icon({
+        src: 'public/img/icons/marker/arrowHead.svg',
+        scale: 10.0/100,
+        color: cfg.color,
+        opacity: cfg.opacity ?? defaultArrowStyleConfig.opacity,
+        anchor: [0.5, 0],
+        rotation: rotation,
+      })
     })
-  });
+  ];
 }
 
 /**
@@ -195,13 +215,20 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
 
     if(!style.fields) {
       // Set a global style
-      vectorLayer.setStyle(strokeMaker(style.base));
+      vectorLayer.setStyle((feature: FeatureLike) => {
+        const lineString = feature.getGeometry() as LineString;
+        const coords = lineString.getCoordinates();
+        return strokeMaker(style.base, coords);
+      });
     } else {
       vectorLayer.setStyle((feature: FeatureLike) => {
         const idx = feature.get("rowIndex") as number;
         const dims = style.dims;
+        const lineString = feature.getGeometry() as LineString;
+        const coords = lineString.getCoordinates();
+
         if(!dims || !(isNumber(idx))) {
-          return strokeMaker(style.base);
+          return strokeMaker(style.base, coords);
         }
 
         const values = {...style.base};
@@ -212,7 +239,7 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
         if (dims.lineWidth) {
           values.lineWidth = dims.lineWidth.get(idx);
         }
-        return strokeMaker(values);
+        return strokeMaker(values, coords);
       }
       );
     }
