@@ -11,11 +11,16 @@ import Map from 'ol/Map';
 import LineString from 'ol/geom/LineString';
 import * as source from 'ol/source';
 import {
+  getScaledDimension,
+  getColorDimension,
+} from 'app/features/dimensions';
+import {
   defaultArrowStyleConfig,
   ArrowStyleConfig,
   ArrowStyleConfigFields,
   ArrowStyleConfigState,
-  ArrowStyleConfigValues
+  ArrowStyleConfigValues,
+  ArrowStyleDimensions
 } from '../../style/types';
 import VectorLayer from 'ol/layer/Vector';
 import { FieldFinder } from '../../utils/location';
@@ -225,6 +230,17 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
           const info = dataFrameToLineString(frame);
           if (info.warning)
             continue;
+
+          if (style.fields) {
+            const dims: ArrowStyleDimensions = {};
+            if (style.fields.color) {
+              dims.color = getColorDimension(frame, style.config.color ?? defaultArrowStyleConfig.color, theme);
+            }
+            if (style.fields.lineWidth) {
+              dims.lineWidth = getScaledDimension(frame, style.config.lineWidth?? defaultArrowStyleConfig.lineWidth);
+            }
+            style.dims = dims;
+          }
 
           const frameFeatures = getArrowFeatures(frame, info);
           if (frameFeatures) {
