@@ -152,14 +152,15 @@ export async function getArrowStyleConfigState(cfg?: ArrowStyleConfig): Promise<
   return state;
 }
 
-export const StrokeMarker = (cfg: ArrowStyleConfigValues) => {
+const strokeMaker = (cfg: ArrowStyleConfigValues) => {
+  const color = tinycolor(cfg.color).setAlpha(cfg.opacity ?? defaultArrowStyleConfig.opacity).toRgbString();
   return new Style({
     stroke: new Stroke({
-      color: cfg.color,
       width: cfg.lineWidth,
+      color: color,
     })
   });
-};
+}
 
 /**
  * Map layer configuration for arrow overlay
@@ -188,29 +189,14 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
     const vectorLayer = new VectorLayer();
 
     if(!style.fields) {
-      const color = tinycolor(style.base.color).setAlpha(style.base.opacity ?? defaultArrowStyleConfig.opacity).toRgbString();
-
       // Set a global style
-      const line_style: Style = new Style({
-        stroke: new Stroke({
-          width: style.base.lineWidth,
-          color: color,
-        }),
-      });
-      vectorLayer.setStyle(line_style);
-
+      vectorLayer.setStyle(strokeMaker(style.base));
     } else {
       vectorLayer.setStyle((feature: FeatureLike) => {
         const idx = feature.get("rowIndex") as number;
         const dims = style.dims;
         if(!dims || !(isNumber(idx))) {
-          const line_style: Style = new Style({
-            stroke: new Stroke({
-              width: style.base.lineWidth,
-              color: style.base.color,
-            }),
-          });
-          return line_style;
+          return strokeMaker(style.base);
         }
 
         const values = {...style.base};
@@ -221,13 +207,7 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
         if (dims.lineWidth) {
           values.lineWidth = dims.lineWidth.get(idx);
         }
-        const line_style: Style = new Style({
-          stroke: new Stroke({
-            width: values.lineWidth,
-            color: values.color,
-          }),
-        });
-        return line_style;
+        return strokeMaker(values);
       }
       );
     }
