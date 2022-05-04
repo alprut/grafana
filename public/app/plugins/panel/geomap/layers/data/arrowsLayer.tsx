@@ -32,7 +32,7 @@ import { isNumber } from 'lodash';
 import tinycolor from 'tinycolor2';
 import { config } from '@grafana/runtime';
 
-// Configuration options for Circle overlays
+// Configuration options for Arrow overlays
 export interface ArrowsConfig {
   arrowstyle: ArrowStyleConfig;
 };
@@ -115,7 +115,7 @@ function dataFrameToLineString(frame: DataFrame): LineStringInfo {
 const getArrowFeatures = (frame: DataFrame, info: LineStringInfo): Array<Feature<LineString>> | undefined => {
   const features: Array<Feature<LineString>> = [];
 
-  // Map each data value into new points
+  // Map each data value into new arrows
   for (let i = 0; i < frame.length; i++) {
     features.push(
       new Feature({
