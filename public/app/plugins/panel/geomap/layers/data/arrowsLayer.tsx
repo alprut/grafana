@@ -141,6 +141,7 @@ export async function getArrowStyleConfigState(cfg?: ArrowStyleConfig): Promise<
       color: config.theme2.visualization.getColorByName(cfg.color?.fixed ?? defaultArrowStyleConfig.color.fixed),
       opacity: cfg.opacity ?? defaultArrowStyleConfig.opacity,
       lineWidth: cfg.lineWidth?.fixed ?? defaultArrowStyleConfig.lineWidth.fixed,
+      showArrowHead: cfg.showArrowHead ?? defaultArrowStyleConfig.showArrowHead
     }
   };
 
@@ -165,26 +166,34 @@ const strokeMaker = (cfg: ArrowStyleConfigValues, coords: number[][]) => {
   const dx = end[0] - start[0];
   const dy = end[1] - start[1];
   const rotation = Math.atan2(dx, dy);
+  const styles = [];
 
-  return [
+  styles.push(
     new Style({
       stroke: new Stroke({
         width: cfg.lineWidth,
         color: color,
       })
-    }),
-    new Style({
-      geometry: new Point(end),
-      image: new Icon({
-        src: 'public/img/icons/marker/arrowHead.svg',
-        scale: 10.0/100,
-        color: cfg.color,
-        opacity: cfg.opacity ?? defaultArrowStyleConfig.opacity,
-        anchor: [0.5, 0],
-        rotation: rotation,
-      })
     })
-  ];
+  );
+
+  if (cfg.showArrowHead) {
+    styles.push(
+      new Style({
+        geometry: new Point(end),
+        image: new Icon({
+          src: 'public/img/icons/marker/arrowHead.svg',
+          scale: 10.0/100,
+          color: cfg.color,
+          opacity: cfg.opacity ?? defaultArrowStyleConfig.opacity,
+          anchor: [0.5, 0],
+          rotation: rotation,
+        })
+      })
+    );
+  }
+
+  return styles;
 }
 
 /**
@@ -289,6 +298,12 @@ export const arrowsLayer: MapLayerRegistryItem<ArrowsConfig> = {
             name: 'Styles',
             editor: ArrowStyleEditor,
             defaultValue: defaultOptions.arrowstyle,
+          })
+          .addBooleanSwitch({
+            path: 'config.arrowstyle.showArrowHead',
+            name: 'Show arrow head',
+            description: 'Show arrow head',
+            defaultValue: defaultOptions.arrowstyle.showArrowHead,
           });
         },
     };

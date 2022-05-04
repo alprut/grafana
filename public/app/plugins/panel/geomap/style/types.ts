@@ -44,6 +44,7 @@ export interface ArrowStyleConfig {
 
   // For non-points
   lineWidth?: ScaleDimensionConfig;
+  showArrowHead: boolean;
 }
 
 export const DEFAULT_SIZE = 5;
@@ -98,6 +99,7 @@ export const defaultArrowStyleConfig = Object.freeze({
     fixed: 'dark-green', // picked from theme
   },
   opacity: 0.4,
+  showArrowHead: false,
 });
 
 /**
@@ -160,6 +162,7 @@ export interface ArrowStyleConfigValues {
   color: string;
   opacity?: number;
   lineWidth?: number;
+  showArrowHead: boolean;
 }
 
 /** When the style depends on a field */
